@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Route Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body { font-family: Arial; padding: 15px; background: #f5f5f5; }
+    .container { max-width: 600px; margin: auto; }
+    textarea { width: 100%; height: 140px; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+    button { width: 100%; padding: 14px; font-size: 18px; margin-top: 10px; border: none; border-radius: 8px; background-color: #007bff; color: white; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    #map { height: 60vh; width: 100%; margin-top: 15px; border-radius: 10px; }
+    @media (min-width: 768px) { #map { height: 500px; } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Route Generator</h2>
+  <p>Enter up to 10 addresses (one per line):</p>
+  <textarea id="addresses" placeholder="Enter addresses here..."></textarea>
+
+  <button onclick="generateRoute()">Generate Route on Map</button>
+  <button onclick="openInGoogleMaps()">Open in Google Maps</button>
+
+  <div id="map"></div>
+</div>
+
+<script>
+let map;
+let directionsService;
+let directionsRenderer;
+let markers = [];
+
+// Initialize Google Map
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 10,
+    center: { lat: 53.5461, lng: -113.4938 } // Edmonton default
+  });
+
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({
+    map: map,
+    draggable: true,
+    polylineOptions: { strokeColor: "#0066FF", strokeWeight: 6 }
+  });
+}
+
+// Generate route with labeled stops
+function generateRoute() {
+  const addresses = document.getElementById("addresses").value
+                     .split("\n")
+                     .filter(a => a.trim() !== "");
+
+  if (addresses.length < 2) { alert("Enter at least 2 addresses."); return; }
+  if (addresses.length > 10) { alert("Maximum 10 addresses."); return; }
+
+  const origin = addresses[0];
+  const destination = addresses[addresses.length - 1];
+  const waypoints = addresses.slice(1, -1).map(addr => ({ location: addr, stopover: true }));
+
+  // Remove old markers
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+
+  directionsService.route({
+    origin: origin,
+    destination: destination,
+    waypoints: waypoints,
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (response, status) => {
+    if (status === "OK") {
+      directionsRenderer.setDirections(response);
+
+      // Add labeled markers for all stops
+      const route = response.routes[0];
+      const allStops = [route.legs[0].start_location];
+      route.legs.forEach(leg => allStops.push(leg.end_location));
+
+      const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      allStops.forEach((pos, i) => {
+        const marker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          label: labels[i]
+        });
+        markers.push(marker);
+      });
+
+    } else {
+      alert("Directions request failed: " + status);
+    }
+  });
+}
+
+// Open route in Google Maps website
+function openInGoogleMaps() {
+  const addresses = document.getElementById("addresses").value
+                     .split("\n")
+                     .filter(a => a.trim() !== "");
+
+  if (addresses.length < 2) { alert("Enter at least 2 addresses."); return; }
+
+  const url = "https://www.google.com/maps/dir/" + addresses.map(a => encodeURIComponent(a.trim())).join("/");
+  window.open(url, "_blank");
+}
+</script>
+
+<!-- Replace YOUR_API_KEY_HERE with your valid Google Maps API key -->
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCBpKi5b0Y9yZ0kcy4lKqLYkAaNQmrZqmQ&callback=initMap&v=weekly">
+</script>
+
+</body>
+</html>
